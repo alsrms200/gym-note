@@ -1,0 +1,13 @@
+{
+  "name": "쇠질 노트",
+  "short_name": "쇠질 노트",
+  "description": "루틴, 세트·휴식 타이머, 운동 체크를 한곳에서 관리하는 개인용 헬스 기록 앱",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0F1318",
+  "theme_color": "#0F1318",
+  "lang": "ko",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
