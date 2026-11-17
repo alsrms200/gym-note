@@ -127,8 +127,8 @@ function viewToday() {
     <div class="tile"><div class="num">${streak}<small> 주</small></div><div class="lbl">목표 연속 달성</div></div>
     <div class="tile"><div class="num">${vol >= 1000 ? kg(vol / 1000) : kg(vol)}<small> ${vol >= 1000 ? 't' : 'kg'}</small></div><div class="lbl">이번 주 볼륨</div></div>
   </div>
-  ${rec ? `<section class="card hero"><div class="eyebrow">오늘의 추천 루틴</div><h2>${esc(rec.routine.name)}</h2><div class="muted small">${esc(rec.why)} ${routineSummary(rec.routine)}</div>
-    <div class="chips">${rec.routine.items.map(i => `<span class="chip">${esc(ex(i.exId).name)}</span>`).join('')}</div>
+  ${rec ? `<section class="card hero"><div class="eyebrow">오늘의 추천 루틴</div><h2>${esc(rec.routine.name)}</h2><div class="muted small">${esc(rec.why)} ${routineSummary(rec.routine)}. 운동 이름을 누르면 운동법이 나옵니다.</div>
+    <div class="chips">${rec.routine.items.map(i => `<button class="chip" data-act="guide" data-id="${i.exId}">${esc(ex(i.exId).name)}</button>`).join('')}</div>
     <button class="btn primary block" data-act="start" data-id="${rec.routine.id}">${state.active ? '진행 중인 운동이 있습니다' : '운동 시작'}</button></section>` : ''}
   <div class="row"><button class="btn ghost grow" data-act="start" data-id="">빈 운동으로 시작</button><a class="btn ghost grow" href="#routines" style="text-decoration:none">다른 루틴 고르기</a></div>
   <section class="card"><h2>코치 메모</h2><div>${tips.map(t => `<div class="tip ${t.tone}"><span class="bar"></span><div><b>${esc(t.t)}</b><span class="muted small">${esc(t.b)}</span></div></div>`).join('')}</div></section>`;
@@ -137,7 +137,7 @@ function viewToday() {
 function viewRoutines() {
   return `<div class="top"><div><div class="sub">추천은 위에서부터 순서대로 돌아갑니다</div><h1>루틴</h1></div><button class="icon-btn" data-act="newRoutine" aria-label="새 루틴">${IC.plus}</button></div>
   ${state.routines.map((r, n) => `<section class="card"><div class="row between"><h2>${esc(r.name)}</h2><span class="muted small">${routineSummary(r)}</span></div>
-    <div>${r.items.map(i => `<div class="ex-line"><span>${esc(ex(i.exId).name)}</span><span>${i.sets} × ${i.reps}${ex(i.exId).kind === 'time' ? '분' : ''}</span></div>`).join('') || '<div class="muted small">운동을 추가해 주세요.</div>'}</div>
+    <div>${r.items.map(i => `<div class="ex-line"><button class="ex-link" data-act="guide" data-id="${i.exId}">${esc(ex(i.exId).name)}</button><span>${i.sets} × ${i.reps}${ex(i.exId).kind === 'time' ? '분' : ''}</span></div>`).join('') || '<div class="muted small">운동을 추가해 주세요.</div>'}</div>
     <div class="row"><button class="btn primary grow" data-act="start" data-id="${r.id}">시작</button><button class="btn" data-act="editRoutine" data-id="${r.id}">수정</button>
     <button class="icon-btn" data-act="moveRoutine" data-n="${n}" data-d="-1" aria-label="위로" ${n ? '' : 'disabled'}>${IC.up}</button></div></section>`).join('') || '<div class="empty">루틴이 없습니다. 오른쪽 위 + 버튼으로 만들어 보세요.</div>'}`;
 }
@@ -219,7 +219,7 @@ function viewWorkout() {
           ${time ? '' : `<span class="field"><input id="w-${i}-${j}" type="number" inputmode="decimal" step="0.5" min="0" aria-label="${j + 1}세트 중량" placeholder="${e.kind === 'bw' ? '맨몸' : '0'}" value="${esc(s.w)}" data-in="set" data-k="w" data-i="${i}" data-j="${j}"></span>`}
           <span class="field"><input id="r-${i}-${j}" type="number" inputmode="decimal" min="0" aria-label="${j + 1}세트 ${time ? '시간(분)' : '횟수'}" value="${esc(s.r)}" data-in="set" data-k="r" data-i="${i}" data-j="${j}"></span>
           <button class="check" data-act="toggleSet" data-i="${i}" data-j="${j}" aria-label="${j + 1}세트 완료" aria-pressed="${s.done}">${IC.check}</button></div>`; }).join('')}
-        <div class="row wrap"><button class="btn sm" data-act="addSet" data-i="${i}">+ 세트</button><button class="btn sm" data-act="delSet" data-i="${i}">− 세트</button>
+        <div class="row wrap"><button class="btn sm guide-btn" data-act="guide" data-id="${it.exId}">운동법 보기</button><button class="btn sm" data-act="addSet" data-i="${i}">+ 세트</button><button class="btn sm" data-act="delSet" data-i="${i}">− 세트</button>
           <span class="grow"></span><button class="btn sm" data-act="restAdj" data-i="${i}" data-d="-15">휴식 −15초</button><button class="btn sm" data-act="restAdj" data-i="${i}" data-d="15">+15초</button>
           <button class="btn sm danger" data-act="delEx" data-i="${i}">종목 빼기</button></div></div>` : ''}</section>`; }).join('')}
   <button class="btn ghost block" data-act="pickForWorkout">${IC.plus.replace('<svg', '<svg width="18" height="18"')} 운동 추가</button>`;
@@ -262,7 +262,9 @@ function setRest(sec) {
 async function keepAwake() { try { if (state.active && 'wakeLock' in navigator && !wake) { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => wake = null); } } catch (e) {} }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { keepAwake(); tick(); } });
 
+let frameN = 0;
 function tick() {
+  const fr = $('#frames'); if (fr && !ui.framePaused && ++frameN % 2 === 0) fr.dataset.f = fr.dataset.f === '0' ? '1' : '0';
   const a = state.active; if (!a) return;
   if (a.rest && !a.rest.fired && Date.now() >= a.rest.end) { a.rest.fired = true; save(); if (state.settings.vibrate && navigator.vibrate) { try { navigator.vibrate([200, 100, 200, 100, 400]); } catch (e) {} } }
   const el = $('#elapsed'); if (el) el.textContent = clock((Date.now() - a.start) / 1000);
@@ -273,7 +275,7 @@ setInterval(tick, 500);
 
 /* ---------- 시트 ---------- */
 const sheet = (title, body, foot = '', full = false) => `<div class="scrim" data-act="scrim"><div class="sheet ${full ? 'full' : ''}" role="dialog" aria-modal="true" aria-label="${esc(title)}"><header><h2>${esc(title)}</h2><button class="icon-btn" data-act="close" aria-label="닫기">${IC.x}</button></header><div class="body">${body}</div>${foot ? `<footer>${foot}</footer>` : ''}</div></div>`;
-const push = s => { ui.sheets.push(s); renderSheet(); };
+const push = s => { ui.framePaused = false; ui.sheets.push(s); renderSheet(); };
 const pop = () => { ui.sheets.pop(); renderSheet(); };
 const ask = (msg, label, yes) => push({ type: 'confirm', msg, label, yes });
 function toast(msg) { document.querySelectorAll('.toast').forEach(t => t.remove()); const t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); t.textContent = msg; document.body.append(t); setTimeout(() => t.remove(), 2400); }
@@ -290,25 +292,34 @@ const SHEETS = {
       <div class="row wrap"><button class="btn grow" data-act="export">백업 파일 받기</button><button class="btn grow" data-act="import">백업 불러오기</button></div>
       <button class="btn ghost danger" data-act="resetAsk">모든 데이터 지우기</button></div>`); },
   editor: s => { const r = s.draft; return sheet(s.isNew ? '새 루틴' : '루틴 수정', `<label class="lbl" for="rt-name">루틴 이름<input class="text-in" id="rt-name" data-in="rtName" value="${esc(r.name)}" placeholder="예: 가슴·삼두"></label>
-      ${r.items.map((i, n) => { const e = ex(i.exId), time = e.kind === 'time'; return `<div class="card"><div class="row between"><div><b>${esc(e.name)}</b><div class="muted small">${e.part} · ${e.equip}</div></div>
+      ${r.items.map((i, n) => { const e = ex(i.exId), time = e.kind === 'time'; return `<div class="card"><div class="row between"><button class="ex-link" data-act="guide" data-id="${i.exId}"><b>${esc(e.name)}</b><div class="muted small">${e.part} · ${e.equip} · 운동법 보기</div></button>
         <div class="row" style="gap:6px"><button class="icon-btn" data-act="edMove" data-n="${n}" data-d="-1" aria-label="위로" ${n ? '' : 'disabled'}>${IC.up}</button><button class="icon-btn" data-act="edMove" data-n="${n}" data-d="1" aria-label="아래로" ${n < r.items.length - 1 ? '' : 'disabled'}>${IC.down}</button><button class="icon-btn" data-act="edDel" data-n="${n}" aria-label="삭제">${IC.x}</button></div></div>
         <div class="grid4">${[['sets', '세트'], ['reps', time ? '분' : '횟수'], ['weight', '시작 kg'], ['rest', '휴식(초)']].filter(f => !(time && f[0] === 'weight')).map(([k, l]) => `<label class="lbl field" for="ed-${n}-${k}">${l}<input id="ed-${n}-${k}" type="number" inputmode="decimal" min="0" value="${i[k] || (k === 'weight' ? '' : 0)}" data-in="ed" data-n="${n}" data-k="${k}"></label>`).join('')}</div></div>`; }).join('')}
       <button class="btn ghost block" data-act="pickForEditor">${IC.plus.replace('<svg', '<svg width="18" height="18"')} 운동 추가</button>
       ${s.isNew ? '' : '<button class="btn ghost danger block" data-act="delRoutineAsk">이 루틴 삭제</button>'}`, `<button class="btn" data-act="close">취소</button><button class="btn primary" data-act="saveRoutine">저장</button>`, true); },
   picker: s => sheet('운동 선택', `<input class="text-in" id="pick-q" type="search" placeholder="운동 이름 검색" aria-label="운동 검색" data-in="pickQ" value="${esc(s.q)}">
-      <div class="scroll-x">${['전체', ...PARTS].map(p => `<button class="chip ${s.part === p ? 'on' : ''}" data-act="pickPart" data-p="${p}">${p}</button>`).join('')}</div>
+      <div class="muted small">사진을 누르면 운동법, 이름을 누르면 추가됩니다.</div><div class="scroll-x">${['전체', ...PARTS].map(p => `<button class="chip ${s.part === p ? 'on' : ''}" data-act="pickPart" data-p="${p}">${p}</button>`).join('')}</div>
       <div id="pick-list" style="display:flex;flex-direction:column;gap:8px">${pickList(s)}</div>`, '', true),
   session: s => { const x = state.sessions.find(q => q.id === s.id); if (!x) return ''; return sheet(x.name, `<div class="muted small">${dateLabel(x.start)} · ${new Date(x.start).toTimeString().slice(0, 5)} 시작</div>
       <div class="tiles"><div class="tile"><div class="num">${clock((x.end - x.start) / 1000)}</div><div class="lbl">운동 시간</div></div><div class="tile"><div class="num">${sessSets(x)}</div><div class="lbl">완료 세트</div></div><div class="tile"><div class="num">${kg(sessVolume(x))}<small> kg</small></div><div class="lbl">총 볼륨</div></div></div>
       ${(s.prs || []).length ? `<div class="chips">${s.prs.map(p => `<span class="chip good">신기록 · ${esc(p)}</span>`).join('')}</div>` : ''}
       ${x.items.map(i => `<div class="card"><b>${esc(ex(i.exId).name)}</b><div class="chips">${doneSets(i).map(q => `<span class="chip num" style="font-size:16px">${ex(i.exId).kind === 'time' ? `${q.r}분` : `${kg(num(q.w))}kg × ${q.r}`}</span>`).join('')}</div></div>`).join('')}
       <button class="btn ghost danger block" data-act="delSessionAsk" data-id="${x.id}">이 기록 삭제</button>`); },
+  guide: s => { const e = ex(s.id), g = GUIDE[s.id];
+    const yt = `<a class="btn ghost block" style="text-decoration:none" target="_blank" rel="noopener" href="https://www.youtube.com/results?search_query=${encodeURIComponent(e.name + ' 자세')}">유튜브에서 영상으로 보기</a>`;
+    if (!g) return sheet(e.name, `<p class="muted">직접 추가한 운동이라 준비된 설명이 없습니다. 영상 검색으로 자세를 확인하세요.</p>${yt}`);
+    return sheet(e.name, `<div class="frames" id="frames" data-f="0"><img src="img/${e.id}-0.jpg" alt="${esc(e.name)} 시작 자세"><img src="img/${e.id}-1.jpg" alt="${esc(e.name)} 마무리 자세"><span class="frame-lbl"><i>시작 자세</i><i>마무리 자세</i></span></div>
+      <div class="row between"><div class="chips"><span class="chip">${e.part}</span><span class="chip">${e.equip}</span></div><button class="btn sm" data-act="framePause" aria-pressed="false">동작 멈춤</button></div>
+      <div class="card"><div class="eyebrow">자극 부위</div><b>${esc(g[0])}</b></div>
+      <div class="card"><div class="eyebrow">운동 순서</div><ol class="steps">${g[1].map(t => `<li>${esc(t)}</li>`).join('')}</ol></div>
+      <div class="tip warn"><span class="bar"></span><div><b>주의할 점</b><span class="muted small">${esc(g[2])}</span></div></div>${yt}`, '', true); },
   finish: () => { const a = state.active, n = sessSets(a); return sheet('운동을 마칠까요?', `<div class="tiles"><div class="tile"><div class="num">${clock((Date.now() - a.start) / 1000)}</div><div class="lbl">운동 시간</div></div><div class="tile"><div class="num">${n}</div><div class="lbl">완료 세트</div></div><div class="tile"><div class="num">${kg(sessVolume(a))}<small> kg</small></div><div class="lbl">총 볼륨</div></div></div>
       <p class="muted small">${n ? '체크한 세트만 기록에 남습니다.' : '완료한 세트가 없어 기록은 남지 않습니다.'}</p>`, `<button class="btn" data-act="close">계속하기</button><button class="btn primary" data-act="finish">${n ? '저장하고 종료' : '기록 없이 종료'}</button>`); },
 };
 function pickList(s) {
   const q = s.q.trim(), list = allEx().filter(e => (s.part === '전체' || e.part === s.part) && (!q || e.name.includes(q)));
-  return list.map(e => `<button class="pick" data-act="pick" data-id="${e.id}"><span><b>${esc(e.name)}</b><br><span class="muted small">${e.part} · ${e.equip}</span></span>${IC.plus.replace('<svg', '<svg width="20" height="20"')}</button>`).join('')
+  return list.map(e => `<div class="pick"><button class="thumb" data-act="guide" data-id="${e.id}" aria-label="${esc(e.name)} 운동법 보기">${GUIDE[e.id] ? `<img src="img/${e.id}-1.jpg" alt="" loading="lazy">` : '?'}</button>
+      <button class="grow pick-main" data-act="pick" data-id="${e.id}"><span><b>${esc(e.name)}</b><br><span class="muted small">${e.part} · ${e.equip}</span></span>${IC.plus.replace('<svg', '<svg width="20" height="20"')}</button></div>`).join('')
     + (q && !allEx().some(e => e.name === q) ? `<button class="pick" data-act="pickCustom"><span><b>‘${esc(q)}’ 새 운동으로 추가</b><br><span class="muted small">${s.part === '전체' ? '부위를 먼저 고르면 해당 부위로 등록됩니다' : s.part + ' 부위로 등록'}</span></span>${IC.plus.replace('<svg', '<svg width="20" height="20"')}</button>` : (!list.length ? '<div class="empty">검색 결과가 없습니다.</div>' : ''));
 }
 function renderSheet() { const s = ui.sheets[ui.sheets.length - 1]; $('#overlay').innerHTML = s ? SHEETS[s.type](s) : ''; }
@@ -398,6 +409,8 @@ const A = {
   applySug: d => { const it = state.active.items[+d.i]; it.sets.forEach(s => { if (!s.done) s.w = it.sug.to; }); it.sug = null; save(); render(); },
   restTime: d => { const r = state.active.rest; if (r) { const left = Math.max(0, (r.end - Date.now()) / 1000 + +d.d); r.end = Date.now() + left * 1000; r.total = Math.max(r.total, left); scheduleBeep(left); save(); paintDock(); } },
   restSkip: () => { setRest(null); paintDock(); },
+  guide: d => push({ type: 'guide', id: d.id }),
+  framePause: (d, el) => { ui.framePaused = !ui.framePaused; el.setAttribute('aria-pressed', ui.framePaused); el.textContent = ui.framePaused ? '동작 재생' : '동작 멈춤'; if (ui.framePaused) { const f = $('#frames'); f.dataset.f = f.dataset.f === '0' ? '1' : '0'; } },
   finishAsk: () => push({ type: 'finish' }),
   finish: finishWorkout,
 };
